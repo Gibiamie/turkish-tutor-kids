@@ -1,24 +1,13 @@
-const VERSION = 'turkish-tutor-v03-20260712-r1';
-const CORE = ['./','./index.html','./styles.css','./app.js','./app.part1.txt','./app.part2.txt','./app.part3.txt','./data.js','./manifest.webmanifest','./icon.svg'];
-self.addEventListener('install', event => {
-  event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(CORE)).then(()=>self.skipWaiting()));
-});
-self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
-});
-self.addEventListener('fetch', event => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  if (req.mode === 'navigate') {
-    event.respondWith(fetch(req).then(res=>{const copy=res.clone();caches.open(VERSION).then(c=>c.put('./index.html',copy));return res;}).catch(()=>caches.match('./index.html')));
-    return;
-  }
-  if (url.origin === location.origin) {
-    event.respondWith(caches.match(req).then(cached=>cached || fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(VERSION).then(c=>c.put(req,copy));}return res;})));
-    return;
-  }
-  if (url.hostname === 'gibiamie.github.io') {
-    event.respondWith(caches.match(req).then(cached => cached || fetch(req,{mode:'cors'}).then(res=>{if(res.ok){const copy=res.clone();caches.open(VERSION).then(c=>c.put(req,copy));}return res;}).catch(()=>cached)));
+const CACHE='turkce-adim-v03-03.0.0';
+const SHELL=['./','./index.html','./styles.css','./app.js','./data.js','./manifest.webmanifest','./assets/icons/icon.svg'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  const url=new URL(event.request.url);
+  if(url.origin===location.origin){
+    event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(c=>c.put(event.request,copy));return response;}).catch(()=>event.request.mode==='navigate'?caches.match('./index.html'):undefined)));
+  } else if(url.hostname==='raw.githubusercontent.com'){
+    event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request,{mode:'no-cors'}).then(response=>{const copy=response.clone();caches.open(CACHE).then(c=>c.put(event.request,copy));return response;})));
   }
 });

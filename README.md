@@ -1,35 +1,33 @@
-# Turkish Tutor — Version 03
+# Türkçe Adım — Version 03
 
-Production-oriented, mobile-first Turkish learning PWA for English and Bahasa Indonesia speakers.
+Production PWA for English- and Bahasa Indonesia-speaking Turkish learners.
 
-## Product scope
+## Release scope
 
-- Separate profiles for Bella, Ayza, Adult and Guest
-- A1 learning path covering Turkish sounds, first words, natural greetings, suffix building and an A1 checkpoint
-- Listen, choose, type, build and self-assessment activities
-- Turkish-character-tolerant search after three characters
-- Profile-specific progress, mistake review, accuracy and streak tracking
-- Light/dark mode and responsive one-handed mobile UI
-- Offline application shell with a versioned service worker
-- No login, location collection or background microphone use
-- Existing visual and recorded-audio assets are served from the `turkish-tutor-kids-clean` GitHub Pages library; Turkish device speech is used when a recording is unavailable
+- Five clean A1 foundation topics: Turkish sounds, root words, meaning builder, possession, plurals
+- No-answer-reveal practice flow
+- `Practice done / I already know this / Needs more practice` statuses, available only after practice
+- Local progress, review scheduling, typo-tolerant Turkish search
+- Verified legacy audio for plural examples
+- Legacy root-word images with resilient emoji fallback
+- Offline app shell and runtime media caching
+- Responsive mobile-first interface
 
-## Production architecture
-
-- `index.html` — application shell
-- `styles.css` — responsive design system
-- `data.js` — curriculum, localization and search data
-- `app.js` — verified production loader
-- `app.part1.txt`–`app.part3.txt` — deterministic production module chunks
-- `sw.js` — cache lifecycle and offline routing
-- `manifest.webmanifest` and `icon.svg` — installable PWA metadata
-
-## Local serving
-
-Serve the repository over HTTP because service workers do not run correctly from `file://` URLs.
+## Local run
 
 ```bash
 python3 -m http.server 4173
 ```
 
-Release: Version 03 — 2026-07-12
+Open `http://localhost:4173`.
+
+## QA
+
+```bash
+node --check app.js
+node --check data.js
+node --check sw.js
+python3 -m json.tool manifest.webmanifest
+python3 tests/static_audit.py
+python3 tests/browser_qa.py
+```
