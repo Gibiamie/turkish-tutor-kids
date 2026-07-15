@@ -110,7 +110,7 @@ jobs:
 
           Path('icon.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Turkish Meaning Builder"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#3563f3"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#g)"/><text x="256" y="305" text-anchor="middle" font-family="Arial,sans-serif" font-size="170" font-weight="800" fill="white">TR</text></svg>''', encoding='utf-8')
 
-          Path('sw.js').write_text('''const CACHE='turkish-meaning-builder-v03-20260715-r2';
+          Path('sw.js').write_text('''const CACHE='turkish-meaning-builder-v03-20260715-r3';
           const CORE=['./','./index.html','./css/styles.css','./css/typography.css','./js/app.js','./js/i18n.js','./js/profiles.js','./js/lessonData.js','./js/progressStore.js','./js/uiComponents.js','./manifest.webmanifest','./icon.svg'];
           self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting())));
           self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
@@ -138,9 +138,14 @@ jobs:
           grep -q "root_words:'ev'" js/app.js
           ! grep -q "root_words:'-lik'" js/app.js
           grep -Fq "EXPLANATIONS[x.explanationKey]" js/app.js
+          grep -Fq 'The Turkish word “${word}” means “${meaning}”' js/app.js
+          grep -Fq '<h2 class="word-large">${esc(word)}</h2>' js/app.js
+          ! grep -Fq 'Listen, look, then start practice.' js/app.js
           grep -q "Version 03" js/i18n.js
           grep -q "serviceWorker.register" index.html
+          grep -q "20260715-r3" sw.js
           echo "VERSION_03_SOURCE_COPY_OK"
+          echo "ROOT_WORDS_TEACHING_OK"
           echo "AUDIO_FILES=$(find audio -type f | wc -l)"
           echo "IMAGE_FILES=$(find images -type f | wc -l)"
 
