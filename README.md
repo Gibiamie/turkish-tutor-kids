@@ -1,33 +1,28 @@
-# Türkçe Adım — Version 03
+# Turkish Meaning Builder — Version 03
 
-Production PWA for English- and Bahasa Indonesia-speaking Turkish learners.
+A GitHub Pages compatible, modular Turkish learning app for kids and adults.
 
-## Release scope
+## Scope
+- Profile-based learner flow: Bella, Ayza, Adult, Guest
+- Separate progress scope by profile + language + mode
+- Real day-streak tracking per profile (local storage)
+- Backend-ready progress store with local fallback
+- Clean i18n layer for English and Bahasa Indonesia
+- No final answer reveal before solving builder lessons
+- Audio QA distinction: expected route vs human pronunciation verification
+- Special rule for ğ: no isolated ğ audio; teach only through real word examples
+- Turkish-safe typography system (css/typography.css)
 
-- Five clean A1 foundation topics: Turkish sounds, root words, meaning builder, possession, plurals
-- No-answer-reveal practice flow
-- `Practice done / I already know this / Needs more practice` statuses, available only after practice
-- Local progress, review scheduling, typo-tolerant Turkish search
-- Verified legacy audio for plural examples
-- Legacy root-word images with resilient emoji fallback
-- Offline app shell and runtime media caching
-- Responsive mobile-first interface
+## Deployment
+Upload all files and folders in this package to the GitHub repository root.
+Open:
+- Normal app: https://gibiamie.github.io/turkish-tutor-kids-clean/
+- QA mode: https://gibiamie.github.io/turkish-tutor-kids-clean/?qa=1
 
-## Local run
+## Backend note
+Version 03 is backend-ready but still uses local fallback because Supabase keys/database are not connected yet.
+A future release should connect Supabase tables: profiles, progress, lesson_attempts, audio_verification.
 
-```bash
-python3 -m http.server 4173
-```
-
-Open `http://localhost:4173`.
-
-## QA
-
-```bash
-node --check app.js
-node --check data.js
-node --check sw.js
-python3 -m json.tool manifest.webmanifest
-python3 tests/static_audit.py
-python3 tests/browser_qa.py
-```
+## Governance
+See `project-constitution.md` and the `qa/` folder (`known-critical-rules.md`,
+`regression-checklist.md`, `release-gate.md`) before any release statement.
