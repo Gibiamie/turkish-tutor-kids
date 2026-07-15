@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -48,6 +48,8 @@ jobs:
 
   deploy:
     needs: test
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -64,4 +66,33 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-# Deployment trigger: approved clean baseline mirrored on 2026-07-15.
+  verify-live:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify live HTML, JavaScript and audio
+        env:
+          SITE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          sleep 10
+          curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}" -o /tmp/index.html
+          grep -F 'Turkish Meaning Builder — Version 03' /tmp/index.html
+          curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}js/app.js" -o /tmp/app.js
+          grep -F "from'./lessonData.js'" /tmp/app.js
+          curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}audio/pronunciation_tr_a.mp3" -o /tmp/sample.mp3
+          test "$(wc -c < /tmp/sample.mp3)" -gt 1000
+          curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}images/ev.png" -o /tmp/ev.png
+          test "$(wc -c < /tmp/ev.png)" -gt 1000
+      - name: Record live acceptance
+        env:
+          SITE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          printf '# Version 03 Live Acceptance\n\n- Commit: `%s`\n- URL: %s\n- HTML: verified\n- JavaScript module: verified\n- Audio file: verified\n- Image file: verified\n' "$GITHUB_SHA" "$SITE_URL" > LIVE_VERIFIED.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add LIVE_VERIFIED.md
+          git commit -m 'Record live Version 03 acceptance'
+          git push origin main
