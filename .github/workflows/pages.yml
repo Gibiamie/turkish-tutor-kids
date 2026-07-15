@@ -1,0 +1,172 @@
+name: Rebuild and deploy Version 03 from approved source
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: version-03-production
+  cancel-in-progress: true
+
+jobs:
+  rebuild-test-deploy:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout Version 03 repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout approved clean application
+        uses: actions/checkout@v4
+        with:
+          repository: Gibiamie/turkish-tutor-kids-clean
+          ref: main
+          path: _approved_source
+
+      - name: Replace obsolete Version 03 code with approved application
+        shell: bash
+        run: |
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            ! -name '.github' \
+            ! -name '_approved_source' \
+            -exec rm -rf {} +
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            _approved_source/ ./
+          rm -rf _approved_source
+
+      - name: Apply Version 03 product corrections
+        shell: python
+        run: |
+          from pathlib import Path
+
+          app_path = Path('js/app.js')
+          app = app_path.read_text(encoding='utf-8')
+
+          replacements = {
+              "root_words:'-lik'": "root_words:'ev'",
+              "guide(localized(x.target,l))": "guide(localized((EXPLANATIONS[x.explanationKey]||{}).main,l)||localized(x.target,l))",
+          }
+          for old, new in replacements.items():
+              if old not in app:
+                  raise SystemExit(f'Required application patch marker not found: {old}')
+              app = app.replace(old, new, 1)
+          app_path.write_text(app, encoding='utf-8')
+
+          i18n_path = Path('js/i18n.js')
+          i18n = i18n_path.read_text(encoding='utf-8')
+          for old, new in [
+              ("version: 'v1 Release Candidate 9'", "version: 'Version 03'"),
+              ("version: 'v1 Kandidat Rilis 9'", "version: 'Versi 03'"),
+          ]:
+              if old not in i18n:
+                  raise SystemExit(f'Required version marker not found: {old}')
+              i18n = i18n.replace(old, new, 1)
+          i18n_path.write_text(i18n, encoding='utf-8')
+
+          index_path = Path('index.html')
+          index = index_path.read_text(encoding='utf-8')
+          index = index.replace(
+              '<title>Turkish Meaning Builder — RC9</title>',
+              '<title>Turkish Meaning Builder — Version 03</title>',
+          )
+          if 'manifest.webmanifest' not in index:
+              index = index.replace(
+                  '<link rel="stylesheet" href="css/styles.css" />',
+                  '<link rel="manifest" href="manifest.webmanifest" />\n  <link rel="icon" href="icon.svg" type="image/svg+xml" />\n  <link rel="stylesheet" href="css/styles.css" />',
+              )
+          if "serviceWorker.register" not in index:
+              index = index.replace(
+                  '<script type="module" src="js/app.js"></script>',
+                  '<script type="module" src="js/app.js"></script>\n  <script>if(\'serviceWorker\' in navigator){addEventListener(\'load\',()=>navigator.serviceWorker.register(\'./sw.js\'));}</script>',
+              )
+          index_path.write_text(index, encoding='utf-8')
+
+          Path('manifest.webmanifest').write_text('''{
+            "name": "Turkish Meaning Builder — Version 03",
+            "short_name": "Turkish V03",
+            "description": "Mobile-first Turkish learning with English and Bahasa Indonesia guidance.",
+            "start_url": "./",
+            "scope": "./",
+            "display": "standalone",
+            "background_color": "#eef7ff",
+            "theme_color": "#2563eb",
+            "lang": "en",
+            "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+          }''', encoding='utf-8')
+
+          Path('icon.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Turkish Meaning Builder"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#3563f3"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#g)"/><text x="256" y="305" text-anchor="middle" font-family="Arial,sans-serif" font-size="170" font-weight="800" fill="white">TR</text></svg>''', encoding='utf-8')
+
+          Path('sw.js').write_text('''const CACHE='turkish-meaning-builder-v03-20260715-r2';
+          const CORE=['./','./index.html','./css/styles.css','./css/typography.css','./js/app.js','./js/i18n.js','./js/profiles.js','./js/lessonData.js','./js/progressStore.js','./js/uiComponents.js','./manifest.webmanifest','./icon.svg'];
+          self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting())));
+          self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+          self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(response=>{if(response&&response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));}return response;}).catch(()=>event.request.mode==='navigate'?caches.match('./index.html'):undefined)));});'''.replace('          ', ''), encoding='utf-8')
+
+          Path('.nojekyll').write_text('', encoding='utf-8')
+
+      - name: Run production acceptance checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check js/app.js
+          node --check js/i18n.js
+          node --check js/lessonData.js
+          node --check js/profiles.js
+          node --check js/progressStore.js
+          node --check js/uiComponents.js
+          node --check sw.js
+          python -m json.tool manifest.webmanifest >/dev/null
+          test -f index.html
+          test -d audio
+          test -d images
+          test "$(find audio -type f | wc -l)" -ge 20
+          test "$(find images -type f | wc -l)" -ge 8
+          grep -q "root_words:'ev'" js/app.js
+          ! grep -q "root_words:'-lik'" js/app.js
+          grep -Fq "EXPLANATIONS[x.explanationKey]" js/app.js
+          grep -q "Version 03" js/i18n.js
+          grep -q "serviceWorker.register" index.html
+          echo "VERSION_03_SOURCE_COPY_OK"
+          echo "AUDIO_FILES=$(find audio -type f | wc -l)"
+          echo "IMAGE_FILES=$(find images -type f | wc -l)"
+
+      - name: Commit the approved source copy
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No repository changes to commit.'
+          else
+            git commit -m '[source-sync] Build Version 03 from turkish-tutor-kids-clean'
+            git push origin main
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload tested Version 03
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy Version 03
+        id: deployment
+        uses: actions/deploy-pages@v4
