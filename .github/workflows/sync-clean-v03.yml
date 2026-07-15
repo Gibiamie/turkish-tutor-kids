@@ -1,0 +1,93 @@
+name: Sync clean baseline into Version 03
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sync-clean-v03.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Version 03 repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout approved clean application
+        uses: actions/checkout@v4
+        with:
+          repository: Gibiamie/turkish-tutor-kids-clean
+          ref: main
+          path: _source
+
+      - name: Replace target with approved source
+        run: |
+          cp .github/workflows/sync-clean-v03.yml /tmp/sync-clean-v03.yml
+          cp .github/workflows/deploy.yml /tmp/deploy.yml
+          mkdir -p /tmp/approved-source
+          rsync -a --delete --exclude='.git' _source/ /tmp/approved-source/
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '_source' -exec rm -rf {} +
+          rm -rf _source
+          rsync -a /tmp/approved-source/ ./
+          mkdir -p .github/workflows
+          cp /tmp/sync-clean-v03.yml .github/workflows/sync-clean-v03.yml
+          cp /tmp/deploy.yml .github/workflows/deploy.yml
+          touch .nojekyll
+
+      - name: Apply Version 03 identity only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          index = Path('index.html')
+          text = index.read_text(encoding='utf-8')
+          text = text.replace('Turkish Meaning Builder — RC9', 'Turkish Meaning Builder — Version 03')
+          index.write_text(text, encoding='utf-8')
+
+          i18n = Path('js/i18n.js')
+          text = i18n.read_text(encoding='utf-8')
+          text = text.replace("version: 'v1 Release Candidate 9'", "version: 'Version 03'")
+          text = text.replace("version: 'v1 Kandidat Rilis 9'", "version: 'Versi 03'")
+          i18n.write_text(text, encoding='utf-8')
+
+          readme = Path('README.md')
+          if readme.exists():
+              text = readme.read_text(encoding='utf-8')
+              text = text.replace('Turkish Meaning Builder — RC9', 'Turkish Meaning Builder — Version 03')
+              text = text.replace('RC9 is backend-ready', 'Version 03 is backend-ready')
+              readme.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify copied media and modules
+        run: |
+          find js -name '*.js' -print0 | xargs -0 -n1 node --check
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path('.')
+          text = '\n'.join(p.read_text(encoding='utf-8') for p in root.glob('js/*.js'))
+          refs = sorted(set(re.findall(r"(?:audio|images)/[A-Za-z0-9_./-]+", text)))
+          missing = [ref for ref in refs if not (root / ref).is_file()]
+          if missing:
+              raise SystemExit('Missing copied media:\n' + '\n'.join(missing))
+          if len(list(root.glob('audio/*'))) == 0:
+              raise SystemExit('Audio directory is empty')
+          print(f'COPY_QA_OK: {len(refs)} referenced media files')
+          PY
+
+      - name: Commit synchronized Version 03
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes required.'
+          else
+            git commit -m 'Mirror approved clean application as Version 03'
+            git push origin main
+          fi
