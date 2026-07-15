@@ -1,0 +1,65 @@
+name: Test and deploy Version 03
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate application modules
+        run: |
+          test -f index.html
+          test -f css/styles.css
+          test -f css/typography.css
+          test -f js/app.js
+          find js -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Validate referenced media
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path('.')
+          text = '\n'.join(p.read_text(encoding='utf-8') for p in root.glob('js/*.js'))
+          refs = sorted(set(re.findall(r"(?:audio|images)/[A-Za-z0-9_./-]+", text)))
+          missing = [ref for ref in refs if not (root / ref).is_file()]
+          if missing:
+              raise SystemExit('Missing media files:\n' + '\n'.join(missing))
+          print(f'MEDIA_AUDIT_OK: {len(refs)} referenced files')
+          PY
+
+  deploy:
+    needs: test
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
