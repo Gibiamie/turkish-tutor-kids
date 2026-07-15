@@ -1,4 +1,4 @@
-# Turkish Meaning Builder — Version 03
+# Turkish Meaning Builder — RC9
 
 A GitHub Pages compatible, modular Turkish learning app for kids and adults.
 
@@ -20,7 +20,7 @@ Open:
 - QA mode: https://gibiamie.github.io/turkish-tutor-kids-clean/?qa=1
 
 ## Backend note
-Version 03 is backend-ready but still uses local fallback because Supabase keys/database are not connected yet.
+RC9 is backend-ready but still uses local fallback because Supabase keys/database are not connected yet.
 A future release should connect Supabase tables: profiles, progress, lesson_attempts, audio_verification.
 
 ## Governance

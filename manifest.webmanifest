@@ -1,0 +1,12 @@
+{
+  "name": "Turkish Meaning Builder — Version 03",
+  "short_name": "Turkish V03",
+  "description": "Mobile-first Turkish learning with English and Bahasa Indonesia guidance.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef7ff",
+  "theme_color": "#2563eb",
+  "lang": "en",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}
