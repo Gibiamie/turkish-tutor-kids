@@ -25,13 +25,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Validate application modules
+      - name: Validate application modules and teaching content
         run: |
           test -f index.html
           test -f css/styles.css
           test -f css/typography.css
           test -f js/app.js
           find js -name '*.js' -print0 | xargs -0 -n1 node --check
+          grep -Fq 'The Turkish word “${word}” means “${meaning}”' js/app.js
+          grep -Fq '<h2 class="word-large">${esc(word)}</h2>' js/app.js
+          ! grep -Fq 'Listen, look, then start practice.' js/app.js
+          grep -Fq "turkish-meaning-builder-v03-20260715-r3" sw.js
       - name: Validate referenced media
         run: |
           python - <<'PY'
@@ -73,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify live HTML, JavaScript and audio
+      - name: Verify live Version 03, teaching content, cache and media
         env:
           SITE_URL: ${{ needs.deploy.outputs.page_url }}
         run: |
@@ -82,6 +86,14 @@ jobs:
           grep -F 'Turkish Meaning Builder — Version 03' /tmp/index.html
           curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}js/app.js" -o /tmp/app.js
           grep -F "from'./lessonData.js'" /tmp/app.js
+          grep -F 'The Turkish word “${word}” means “${meaning}”' /tmp/app.js
+          grep -F '<h2 class="word-large">${esc(word)}</h2>' /tmp/app.js
+          if grep -Fq 'Listen, look, then start practice.' /tmp/app.js; then
+            echo 'Live site still contains the empty Root Words guide.' >&2
+            exit 1
+          fi
+          curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}sw.js" -o /tmp/sw.js
+          grep -F 'turkish-meaning-builder-v03-20260715-r3' /tmp/sw.js
           curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}audio/pronunciation_tr_a.mp3" -o /tmp/sample.mp3
           test "$(wc -c < /tmp/sample.mp3)" -gt 1000
           curl -fsSL --retry 6 --retry-delay 5 "${SITE_URL}images/ev.png" -o /tmp/ev.png
@@ -90,9 +102,9 @@ jobs:
         env:
           SITE_URL: ${{ needs.deploy.outputs.page_url }}
         run: |
-          printf '# Version 03 Live Acceptance\n\n- Commit: `%s`\n- URL: %s\n- HTML: verified\n- JavaScript module: verified\n- Audio file: verified\n- Image file: verified\n' "$GITHUB_SHA" "$SITE_URL" > LIVE_VERIFIED.md
+          printf '# Version 03 Live Acceptance\n\n- Commit: `%s`\n- URL: %s\n- HTML: verified\n- JavaScript module: verified\n- Root Words Laya teaching: verified\n- Root word and meaning display: verified\n- Cache r3: verified\n- Audio file: verified\n- Image file: verified\n' "$GITHUB_SHA" "$SITE_URL" > LIVE_VERIFIED.md
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add LIVE_VERIFIED.md
-          git commit -m 'Record live Version 03 acceptance'
+          git commit -m 'Record live Root Words teaching acceptance'
           git push origin main
