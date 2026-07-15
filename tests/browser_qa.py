@@ -15,7 +15,10 @@ def bundle():
 
 async def main():
     async with async_playwright() as p:
-        browser=await p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+        chromium_path=Path('/usr/bin/chromium')
+        launch_args={'headless':True,'args':['--no-sandbox']}
+        if chromium_path.exists(): launch_args['executable_path']=str(chromium_path)
+        browser=await p.chromium.launch(**launch_args)
         context=await browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
         page=await context.new_page(); errors=[]
         page.on('console',lambda msg: errors.append(f'console:{msg.type}:{msg.text}') if msg.type=='error' else None)
